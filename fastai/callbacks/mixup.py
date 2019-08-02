@@ -23,7 +23,8 @@ class MixUpCallback(LearnerCallback):
         if self.stack_x:
             new_input = [last_input, last_input[shuffle], lambd]
         else: 
-            new_input = (last_input * lambd.view(lambd.size(0),1,1,1) + x1 * (1-lambd).view(lambd.size(0),1,1,1))
+            out_shape = [lambd.size(0)] + [1 for _ in range(len(x1.shape) - 1)]
+            new_input = (last_input * lambd.view(out_shape) + x1 * (1-lambd).view(out_shape))
         if self.stack_y:
             new_target = torch.cat([last_target[:,None].float(), y1[:,None].float(), lambd[:,None].float()], 1)
         else:
@@ -36,7 +37,7 @@ class MixUpCallback(LearnerCallback):
         if self.stack_y: self.learn.loss_func = self.learn.loss_func.get_old()
         
 
-class MixUpLoss(nn.Module):
+class MixUpLoss(Module):
     "Adapt the loss function `crit` to go with mixup."
     
     def __init__(self, crit, reduction='mean'):

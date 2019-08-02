@@ -6,7 +6,7 @@ from ..train import ClassificationInterpretation
 
 __all__ = ['TabularModel']
 
-class TabularModel(nn.Module):
+class TabularModel(Module):
     "Basic model for tabular data."
     def __init__(self, emb_szs:ListSizes, n_cont:int, out_sz:int, layers:Collection[int], ps:Collection[float]=None,
                  emb_drop:float=0., y_range:OptRange=None, use_bn:bool=True, bn_final:bool=False):
@@ -43,9 +43,9 @@ class TabularModel(nn.Module):
         return x
 
 @classmethod
-def _cl_int_from_learner(cls, learn:Learner, ds_type=DatasetType.Valid):
+def _cl_int_from_learner(cls, learn:Learner, ds_type=DatasetType.Valid, activ:nn.Module=None):
     "Creates an instance of 'ClassificationInterpretation"
-    preds = learn.get_preds(ds_type=ds_type, with_loss=True)
+    preds = learn.get_preds(ds_type=ds_type, activ=activ, with_loss=True)
     return cls(learn, *preds, ds_type=ds_type)
 
 def _cl_int_plot_top_losses(self, k, largest:bool=True, return_table:bool=False)->Optional[plt.Figure]:

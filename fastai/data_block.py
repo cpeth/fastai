@@ -67,9 +67,7 @@ class ItemList():
         self.label_cls,self.inner_df,self.processor = ifnone(label_cls,self._label_cls),inner_df,processor
         self._label_list,self._split = LabelList,ItemLists
         self.copy_new = ['x', 'label_cls', 'path']
-        self.__post_init__()
 
-    def __post_init__(self): pass
     def __len__(self)->int: return len(self.items) or 1
     def get(self, i)->Any:
         "Subclass if you want to customize how to create item `i` from `self.items`."
@@ -132,7 +130,7 @@ class ItemList():
     def from_df(cls, df:DataFrame, path:PathOrStr='.', cols:IntsOrStrs=0, processor:PreProcessors=None, **kwargs)->'ItemList':
         "Create an `ItemList` in `path` from the inputs in the `cols` of `df`."
         inputs = df.iloc[:,df_names_to_idx(cols, df)]
-        assert inputs.isna().sum().sum() == 0, f"You have NaN values in column(s) {cols} of your dataframe, please fix it."
+        assert not inputs.isna().any().any(), f"You have NaN values in column(s) {cols} of your dataframe, please fix it."
         res = cls(items=_maybe_squeeze(inputs.values), path=path, inner_df=df, processor=processor, **kwargs)
         return res
 
@@ -175,7 +173,7 @@ class ItemList():
 
     def filter_by_rand(self, p:float, seed:int=None):
         "Keep random sample of `items` with probability `p` and an optional `seed`."
-        if seed is not None: np.random.seed(seed)
+        if seed is not None: set_all_seed(seed)
         return self.filter_by_func(lambda o: rand_bool(p))
 
     def no_split(self):
@@ -553,7 +551,7 @@ class LabelLists(ItemLists):
         data.label_list = self
         return data
 
-    def add_test(self, items:Iterator, label:Any=None):
+    def add_test(self, items:Iterator, label:Any=None, tfms=None, tfm_y=None):
         "Add test set containing `items` with an arbitrary `label`."
         # if no label passed, use label of first training item
         if label is None: labels = EmptyLabelList([0] * len(items))
@@ -561,14 +559,14 @@ class LabelLists(ItemLists):
         if isinstance(items, MixedItemList): items = self.valid.x.new(items.item_lists, inner_df=items.inner_df).process()
         elif isinstance(items, ItemList): items = self.valid.x.new(items.items, inner_df=items.inner_df).process()
         else: items = self.valid.x.new(items).process()
-        self.test = self.valid.new(items, labels)
+        self.test = self.valid.new(items, labels, tfms=tfms, tfm_y=tfm_y)
         return self
 
-    def add_test_folder(self, test_folder:str='test', label:Any=None):
+    def add_test_folder(self, test_folder:str='test', label:Any=None, tfms=None, tfm_y=None):
         "Add test set containing items from `test_folder` and an arbitrary `label`."
         # note: labels will be ignored if available in the test dataset
         items = self.x.__class__.from_folder(self.path/test_folder)
-        return self.add_test(items.items, label=label)
+        return self.add_test(items.items, label=label, tfms=tfms, tfm_y=tfm_y)
 
     @classmethod
     def load_state(cls, path:PathOrStr, state:dict):
@@ -625,11 +623,12 @@ class LabelList(Dataset):
     @property
     def c(self): return self.y.c
 
-    def new(self, x, y, **kwargs)->'LabelList':
+    def new(self, x, y, tfms=None, tfm_y=None, **kwargs)->'LabelList':
+        tfms,tfm_y = ifnone(tfms, self.tfms),ifnone(tfm_y, self.tfm_y)
         if isinstance(x, ItemList):
-            return self.__class__(x, y, tfms=self.tfms, tfm_y=self.tfm_y, **self.tfmargs)
+            return self.__class__(x, y, tfms=tfms, tfm_y=tfm_y, **self.tfmargs)
         else:
-            return self.new(self.x.new(x, **kwargs), self.y.new(y, **kwargs)).process()
+            return self.new(self.x.new(x, **kwargs), self.y.new(y, **kwargs), tfms=tfms, tfm_y=tfm_y).process()
 
     def __getattr__(self,k:str)->Any:
         x = super().__getattribute__('x')

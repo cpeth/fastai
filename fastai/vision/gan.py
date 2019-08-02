@@ -38,10 +38,9 @@ def basic_generator(in_size:int, n_channels:int, noise_sz:int=100, n_features:in
     layers += [conv2d_trans(cur_ftrs, n_channels, 4, 2, 1, bias=False), nn.Tanh()]
     return nn.Sequential(*layers)
 
-class GANModule(nn.Module):
+class GANModule(Module):
     "Wrapper around a `generator` and a `critic` to create a GAN."
     def __init__(self, generator:nn.Module=None, critic:nn.Module=None, gen_mode:bool=False):
-        super().__init__()
         self.gen_mode = gen_mode
         if generator: self.generator,self.critic = generator,critic
 
@@ -231,7 +230,9 @@ class NoisyItem(ItemBase):
     "An random `ItemBase` of size `noise_sz`."
     def __init__(self, noise_sz): self.obj,self.data = noise_sz,torch.randn(noise_sz, 1, 1)
     def __str__(self):  return ''
-    def apply_tfms(self, tfms, **kwargs): return self
+    def apply_tfms(self, tfms, **kwargs): 
+        for f in listify(tfms): f.resolve()
+        return self
 
 class GANItemList(ImageList):
     "`ItemList` suitable for GANs."
@@ -289,10 +290,9 @@ class GANDiscriminativeLR(LearnerCallback):
         "Put the LR back to its value if necessary."
         if not self.learn.gan_trainer.gen_mode: self.learn.opt.lr /= self.mult_lr
 
-class AdaptiveLoss(nn.Module):
+class AdaptiveLoss(Module):
     "Expand the `target` to match the `output` size before applying `crit`."
     def __init__(self, crit):
-        super().__init__()
         self.crit = crit
 
     def forward(self, output, target):
