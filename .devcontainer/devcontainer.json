@@ -9,7 +9,7 @@
 	// "appPort": [],
 
 	// Uncomment the next line to run commands after the container is created.
-	// "postCreateCommand": "python --version",
+	// "postCreateCommand": "jup.sh",
 
 	"extensions": [
 		"ms-python.python"
